@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -17,30 +17,31 @@ interface Quote {
 }
 
 interface Text {
-  id: number;
+  id: string;
   title: string;
   content: string;
   quotes: Quote[];
 }
 
-// Sample data structure
-const initialTexts: Text[] = [
-  {
-    id: 1,
-    title: 'Sample Text 1',
-    content: 'This is the first sample text. It contains a quote.',
-    quotes: [{ id: 1, text: 'It contains a quote', start: 35, end: 53 }],
-  },
-  {
-    id: 2,
-    title: 'Sample Text 2',
-    content: "Here's another sample text with a different quote.",
-    quotes: [{ id: 2, text: 'with a different quote', start: 33, end: 55 }],
-  },
-];
-
 const App: React.FC = () => {
-  const [texts] = useState<Text[]>(initialTexts);
+  const [texts, setTexts] = useState<Text[]>([]);
+
+  useEffect(() => {
+    const loadTexts = async () => {
+      const textModules = import.meta.glob('/src/assets/*.json');
+      const loadedTexts: Text[] = [];
+
+      for (const path in textModules) {
+        const mod = await textModules[path]();
+        const id = path.split('/').pop()?.replace('.json', '') || '';
+        loadedTexts.push({ ...mod.default, id });
+      }
+
+      setTexts(loadedTexts);
+    };
+
+    loadTexts();
+  }, []);
 
   return (
     <Router>
@@ -49,45 +50,25 @@ const App: React.FC = () => {
           <ul className='flex space-x-4'>
             <li>
               <Link to='/' className='text-blue-500 hover:text-blue-700'>
-                Texts
-              </Link>
-            </li>
-            <li>
-              <Link to='/quotes' className='text-blue-500 hover:text-blue-700'>
                 Quotes
               </Link>
             </li>
+            {texts.map((text) => (
+              <li key={text.id}>
+                <Link to={`/text/${text.id}`} className='text-blue-500 hover:text-blue-700'>
+                  {text.title}
+                </Link>
+              </li>
+            ))}
           </ul>
         </nav>
 
         <Routes>
-          <Route path='/' element={<TextView texts={texts} />} />
+          <Route path='/' element={<QuoteView texts={texts} />} />
           <Route path='/text/:id' element={<TextDetail texts={texts} />} />
-          <Route path='/quotes' element={<QuoteView texts={texts} />} />
         </Routes>
       </div>
     </Router>
-  );
-};
-
-interface TextViewProps {
-  texts: Text[];
-}
-
-const TextView: React.FC<TextViewProps> = ({ texts }) => {
-  return (
-    <div>
-      <h1 className='text-2xl font-bold mb-4'>Texts</h1>
-      <ul>
-        {texts.map((text) => (
-          <li key={text.id} className='mb-2'>
-            <Link to={`/text/${text.id}`} className='text-blue-500 hover:text-blue-700'>
-              {text.title}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 };
 
@@ -98,7 +79,7 @@ interface TextDetailProps {
 const TextDetail: React.FC<TextDetailProps> = ({ texts }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const text = texts.find((t) => t.id === parseInt(id || ''));
+  const text = texts.find((t) => t.id === id);
 
   if (!text) return <div>Text not found</div>;
 
@@ -112,7 +93,7 @@ const TextDetail: React.FC<TextDetailProps> = ({ texts }) => {
             <span
               key={index}
               className='bg-yellow-200 cursor-pointer'
-              onClick={() => navigate('/quotes', { state: { highlightQuote: quote.id } })}
+              onClick={() => navigate('/', { state: { highlightQuote: quote.id } })}
             >
               {char}
             </span>
@@ -141,7 +122,7 @@ const QuoteView: React.FC<QuoteViewProps> = ({ texts }) => {
       <h1 className='text-2xl font-bold mb-4'>Quotes</h1>
       <ul>
         {allQuotes.map((quote) => (
-          <li key={quote.id} className='mb-2'>
+          <li key={`${quote.textId}-${quote.id}`} className='mb-2'>
             <span
               className='cursor-pointer text-blue-500 hover:text-blue-700'
               onClick={() =>

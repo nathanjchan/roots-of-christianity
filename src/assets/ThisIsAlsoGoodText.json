@@ -1,0 +1,5 @@
+{
+  "title": "This Is Also Good Text",
+  "content": "Here's another sample text with a different quote.",
+  "quotes": [{ "id": 2, "text": "with a different quote", "start": 35, "end": 55 }]
+}
